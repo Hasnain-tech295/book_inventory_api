@@ -37,10 +37,10 @@ def get_book_by_id(book_id: int):
 @app.post("/books", status_code=201)
 def create_book(book: BookCreate):
     new_id = max(books_db.keys()) + 1
-    
+    books_db[new_id] = {"id": new_id, "title": book.title, "author": book.author, "year": book.year, "price": book.price}
     return books_db[new_id]
 
-@app.delete("/books/{book_id}")
+@app.delete("/books/{book_id}", status_code=204)
 def delete_book(book_id: int):
     if book_id not in books_db.keys():
         raise HTTPException(status_code=404, detail="Book not found")
