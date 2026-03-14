@@ -15,21 +15,19 @@ def test_get_existing_user():
     assert data["name"] == "Ada Lovelace"
     assert data["email"] == "ada@example.com"
 
-def test_get_nonexistent_user_returns_404():
-    response = client.get("/users/9999")
+def test_get_nonexistent_user():
+    response = client.get("/users/999")
     assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.json() == {"detail": "User not found"}
 
 def test_create_user():
     payload = {"name": "Grace Hopper", "email": "grace@example.com"}
     response = client.post("/users", json=payload)
     assert response.status_code == 201
-    data = response.json()
-    assert data["name"] == "Grace Hopper"
-    assert "id" in data
+    assert response.json() == {"id": 3, "name": "Grace Hopper", "email": "grace@example.com"}
 
 def test_delete_user():
-    response = client.delete("/users/2")
+    response = client.delete("/users/1")
     assert response.status_code == 204
 
 def test_delete_nonexistent_user_returns_404():
