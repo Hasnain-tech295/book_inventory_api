@@ -17,9 +17,6 @@ books_db: dict[int, dict] = {
 }
 
 
-# ---------------------------------------------------------------
-# GET /books  —  filter + sort + paginate
-# ---------------------------------------------------------------
 @app.get("/books", response_model=list[BookResponse])
 def get_books(
     genre:   Optional[str]            = Query(default=None, max_length=50),
@@ -30,21 +27,15 @@ def get_books(
 ):
     results = list(books_db.values())
 
-    # Filter
     if genre:
         results = [b for b in results if b["genre"].lower() == genre.lower()]
 
-    # Sort — reverse=True means descending
     results = sorted(results, key=lambda b: b[sort_by], reverse=(order == "desc"))
 
-    # Paginate after filter + sort
     return results[offset : offset + limit]
 
 
-# ---------------------------------------------------------------
-# GET /books/search  —  substring search across title + author
-# ---------------------------------------------------------------
-@app.get("/books/search", response_model=list[BookResponse])  # list, not single BookResponse
+@app.get("/books/search", response_model=list[BookResponse])
 def search_books(
     q:      str           = Query(min_length=1, description="Search across title and author"),
     limit:  int           = Query(default=10, ge=1, le=100),
@@ -58,20 +49,12 @@ def search_books(
     ]
     return results[offset : offset + limit]
 
-
-# ---------------------------------------------------------------
-# GET /books/{book_id}
-# ---------------------------------------------------------------
 @app.get("/books/{book_id}", response_model=BookResponse)
 def get_book(book_id: int):
     if book_id not in books_db:
         raise HTTPException(status_code=404, detail=f"Book with id={book_id} not found")
     return books_db[book_id]
 
-
-# ---------------------------------------------------------------
-# POST /books
-# ---------------------------------------------------------------
 @app.post("/books", status_code=201, response_model=BookResponse)
 def create_book(book: BookCreate):
     new_id = max(books_db.keys()) + 1 if books_db else 1
@@ -79,9 +62,6 @@ def create_book(book: BookCreate):
     return books_db[new_id]
 
 
-# ---------------------------------------------------------------
-# PATCH /books/{book_id}
-# ---------------------------------------------------------------
 @app.patch("/books/{book_id}", response_model=BookResponse)
 def update_book(book_id: int, update: BookUpdate):
     if book_id not in books_db:
@@ -90,9 +70,6 @@ def update_book(book_id: int, update: BookUpdate):
     return books_db[book_id]
 
 
-# ---------------------------------------------------------------
-# DELETE /books/{book_id}
-# ---------------------------------------------------------------
 @app.delete("/books/{book_id}", status_code=204)
 def delete_book(book_id: int):
     if book_id not in books_db:
