@@ -1,15 +1,30 @@
-# main.py
-
-from fastapi import FastAPI, HTTPException, Query
+import logging
+from fastapi import FastAPI, Query
 from typing import Optional, Literal
 from schemas import BookCreate, BookResponse, BookUpdate
+from exceptions import (
+    BookNotFoundError, 
+    DuplicateISBNError, 
+    InvalidSearchQueryError, 
+    register_exception_handlers
+)
+from middleware import RequestContextMiddleware
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Book Inventory API",
-    description="API for managing book inventory",
-    version="1.0.0"
+    description="Production style error handling demo",
+    version="2.0.0"
 )
 
+# register middleware
+app.add_middleware(RequestContextMiddleware)
+
+# register exception handlers
+register_exception_handlers(app)
+
+# In-memory database
 books_db: dict[int, dict] = {
     1: {"id": 1, "title": "The Great Gatsby",      "author": "F. Scott Fitzgerald", "year": 1925, "genre": "Novel",   "price": 10.99, "isbn": "9780743273565"},
     2: {"id": 2, "title": "To Kill a Mockingbird", "author": "Harper Lee",          "year": 1960, "genre": "Novel",   "price": 12.99, "isbn": "9780061120084"},
@@ -37,10 +52,13 @@ def get_books(
 
 @app.get("/books/search", response_model=list[BookResponse])
 def search_books(
-    q:      str           = Query(min_length=1, description="Search across title and author"),
+    q:      str | None    = Query(default=None, min_length=1, description="Search across title and author"),
     limit:  int           = Query(default=10, ge=1, le=100),
     offset: int           = Query(default=0,  ge=0),
 ):
+
+    if q is None:
+        raise InvalidSearchQueryError("Search query cannot be empty")
     # One unified query param `q` — simpler and matches the assignment spec
     q_lower = q.lower()
     results = [
@@ -52,11 +70,16 @@ def search_books(
 @app.get("/books/{book_id}", response_model=BookResponse)
 def get_book(book_id: int):
     if book_id not in books_db:
-        raise HTTPException(status_code=404, detail=f"Book with id={book_id} not found")
+        raise BookNotFoundError(book_id)
     return books_db[book_id]
 
 @app.post("/books", status_code=201, response_model=BookResponse)
 def create_book(book: BookCreate):
+    # Check for duplicate ISBN
+    if book.isbn:
+        existing = [b for b in books_db.values() if b.get("isbn") == book.isbn]
+        if existing:
+            raise DuplicateISBNError(isbn=book.isbn)
     new_id = max(books_db.keys()) + 1 if books_db else 1
     books_db[new_id] = {**book.model_dump(), "id": new_id}
     return books_db[new_id]
@@ -65,7 +88,7 @@ def create_book(book: BookCreate):
 @app.patch("/books/{book_id}", response_model=BookResponse)
 def update_book(book_id: int, update: BookUpdate):
     if book_id not in books_db:
-        raise HTTPException(status_code=404, detail=f"Book with id={book_id} not found")
+        raise BookNotFoundError(book_id)
     books_db[book_id].update(update.model_dump(exclude_unset=True))
     return books_db[book_id]
 
@@ -73,5 +96,17 @@ def update_book(book_id: int, update: BookUpdate):
 @app.delete("/books/{book_id}", status_code=204)
 def delete_book(book_id: int):
     if book_id not in books_db:
-        raise HTTPException(status_code=404, detail=f"Book with id={book_id} not found")
+        raise BookNotFoundError(book_id)
     del books_db[book_id]
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": "2.0.0"}
+
+
+# ----
+# Internal 500 route - for testing the catcha-all handler
+# ----
+@app.get("/debug/crash")
+def trigger_crash():
+    raise RuntimeError("This is an intentional unhandled exception")
