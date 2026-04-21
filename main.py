@@ -52,13 +52,13 @@ def get_books(
 
 @app.get("/books/search", response_model=list[BookResponse])
 def search_books(
-    q:      str | None    = Query(default=None, min_length=1, description="Search across title and author"),
+    q:      str | None    = Query(default=None, description="Search across title and author"),
     limit:  int           = Query(default=10, ge=1, le=100),
     offset: int           = Query(default=0,  ge=0),
 ):
 
-    if q is None:
-        raise InvalidSearchQueryError("Search query cannot be empty")
+    if not q or not q.strip():
+        raise InvalidSearchQueryError(q or "")
     # One unified query param `q` — simpler and matches the assignment spec
     q_lower = q.lower()
     results = [

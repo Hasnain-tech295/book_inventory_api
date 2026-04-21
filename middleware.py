@@ -47,7 +47,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             f"duration={duration:.2f}ms"
         )
 
-        response.headers["X-Request_ID"] = request_id
+        response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = f"{duration:.2f}ms"
 
         return response

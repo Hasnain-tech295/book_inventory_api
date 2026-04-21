@@ -23,6 +23,13 @@ class BookCreate(BaseModel):
             raise ValueError("ISBN must be 13 digits")
         return digits
 
+    @field_validator('year')
+    @classmethod
+    def year_not_in_future(cls, v):
+        if v is not None and v > datetime.now().year:
+            raise ValueError(f"Year cannot be in the future")
+        return v
+
 # Response model: What the server sends back to the client
 class BookResponse(BaseModel):
     id: int
@@ -41,5 +48,10 @@ class BookUpdate(BaseModel):
     year: Optional[int] = Field(default=None, gt=0, le=datetime.now().year)
     price: Optional[float] = Field(default=None, gt=0)
     isbn: Optional[str] = Field(default=None)
-    
-    
+
+    @field_validator('year')
+    @classmethod
+    def year_not_in_future(cls, v):
+        if v is not None and v > datetime.now().year:
+            raise ValueError(f"Year cannot be in the future")
+        return v
