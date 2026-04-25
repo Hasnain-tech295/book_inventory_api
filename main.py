@@ -89,7 +89,7 @@ def get_book(book_id: int, db: FakeDB = Depends(get_db)):
     return db.store[book_id]
 
 @app.post("/books", status_code=201, response_model=BookResponse)
-def create_book(book: BookCreate, db: FakeDB = Depends(get_db), user: CurrentUser = Depends(get_current_user)):
+def create_book(book: BookCreate, db: FakeDB = Depends(get_db), user: CurrentUser = Depends(require_editor)):
     global _next_id
     # Check for duplicate ISBN
     if book.isbn:
