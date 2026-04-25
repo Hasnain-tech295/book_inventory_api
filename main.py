@@ -116,6 +116,10 @@ def delete_book(book_id: int, db: FakeDB = Depends(get_db), admin: CurrentUser =
         raise BookNotFoundError(book_id)
     del db.store[book_id]
 
+@app.get("/me", response_model=dict)
+def me(user: CurrentUser = Depends(get_current_user)):
+    return {"user_id": user.user_id, "name": user.name, "role": user.role}
+    
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "2.0.0"}
