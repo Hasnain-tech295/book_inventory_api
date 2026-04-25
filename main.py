@@ -1,6 +1,5 @@
 import logging
-from fastapi import FastAPI, Query
-from typing import Optional, Literal
+from fastapi import FastAPI, Query, Depends
 from schemas import BookCreate, BookResponse, BookUpdate
 from exceptions import (
     BookNotFoundError, 
@@ -10,12 +9,20 @@ from exceptions import (
 )
 from middleware import RequestContextMiddleware
 
+from dependencies import (
+    get_pagination, PaginationParams,
+    get_db, FakeDB,
+    get_current_user, CurrentUser,
+    require_admin, require_editor,
+    BookFilters, _next_id, _books_store
+)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Book Inventory API",
-    description="Production style error handling demo",
-    version="2.0.0"
+    description="Production style error handling demo and DI",
+    version="3.0.0"
 )
 
 # register middleware
@@ -25,36 +32,44 @@ app.add_middleware(RequestContextMiddleware)
 register_exception_handlers(app)
 
 # In-memory database
-books_db: dict[int, dict] = {
-    1: {"id": 1, "title": "The Great Gatsby",      "author": "F. Scott Fitzgerald", "year": 1925, "genre": "Novel",   "price": 10.99, "isbn": "9780743273565"},
-    2: {"id": 2, "title": "To Kill a Mockingbird", "author": "Harper Lee",          "year": 1960, "genre": "Novel",   "price": 12.99, "isbn": "9780061120084"},
-    3: {"id": 3, "title": "1984",                  "author": "George Orwell",       "year": 1949, "genre": "Fiction", "price": 9.99,  "isbn": "9780451524935"},
-}
+# books_db: dict[int, dict] = {
+#     1: {"id": 1, "title": "The Great Gatsby",      "author": "F. Scott Fitzgerald", "year": 1925, "genre": "Novel",   "price": 10.99, "isbn": "9780743273565"},
+#     2: {"id": 2, "title": "To Kill a Mockingbird", "author": "Harper Lee",          "year": 1960, "genre": "Novel",   "price": 12.99, "isbn": "9780061120084"},
+#     3: {"id": 3, "title": "1984",                  "author": "George Orwell",       "year": 1949, "genre": "Fiction", "price": 9.99,  "isbn": "9780451524935"},
+# }
 
 
 @app.get("/books", response_model=list[BookResponse])
 def get_books(
-    genre:   Optional[str]            = Query(default=None, max_length=50),
-    sort_by: Literal["year", "title"] = Query(default="year"),   # only these two values allowed
-    order:   Literal["asc", "desc"]   = Query(default="asc"),    # only these two values allowed
-    limit:   int                      = Query(default=10, ge=1, le=100),
-    offset:  int                      = Query(default=0,  ge=0),
+    pagination: PaginationParams = Depends(get_pagination),
+    filters: BookFilters = Depends(),
+    db: FakeDB = Depends(get_db),
 ):
-    results = list(books_db.values())
+    results = list(db.store.values())
 
-    if genre:
-        results = [b for b in results if b["genre"].lower() == genre.lower()]
+    if filters.author:
+        results = [b for b in results if b["author"].lower() == filters.author.lower()]
 
-    results = sorted(results, key=lambda b: b[sort_by], reverse=(order == "desc"))
+    if filters.min_year:
+        results = [b for b in results if b["year"] >= filters.min_year]
 
-    return results[offset : offset + limit]
+    if filters.max_year:
+        results = [b for b in results if b["year"] <= filters.max_year]
+
+    if filters.genre:
+        results = [b for b in results if b["genre"].lower() == filters.genre.lower()]
+
+    if filters.sort_by:
+        results = sorted(results, key=lambda b: b[filters.sort_by], reverse=(filters.order == "desc"))
+
+    return results[filters.offset : filters.offset + filters.limit]
 
 
 @app.get("/books/search", response_model=list[BookResponse])
 def search_books(
     q:      str | None    = Query(default=None, description="Search across title and author"),
-    limit:  int           = Query(default=10, ge=1, le=100),
-    offset: int           = Query(default=0,  ge=0),
+    pagination: PaginationParams = Depends(get_pagination),
+    db: FakeDB = Depends(get_db),
 ):
 
     if not q or not q.strip():
@@ -62,42 +77,44 @@ def search_books(
     # One unified query param `q` — simpler and matches the assignment spec
     q_lower = q.lower()
     results = [
-        b for b in books_db.values()
+        b for b in db.store.values()
         if q_lower in b["title"].lower() or q_lower in b["author"].lower()
     ]
-    return results[offset : offset + limit]
+    return results[pagination.offset : pagination.offset + pagination.limit]
 
 @app.get("/books/{book_id}", response_model=BookResponse)
-def get_book(book_id: int):
-    if book_id not in books_db:
+def get_book(book_id: int, db: FakeDB = Depends(get_db)):
+    if book_id not in db.store:
         raise BookNotFoundError(book_id)
-    return books_db[book_id]
+    return db.store[book_id]
 
 @app.post("/books", status_code=201, response_model=BookResponse)
-def create_book(book: BookCreate):
+def create_book(book: BookCreate, db: FakeDB = Depends(get_db), user: CurrentUser = Depends(get_current_user)):
+    global _next_id
     # Check for duplicate ISBN
     if book.isbn:
-        existing = [b for b in books_db.values() if b.get("isbn") == book.isbn]
-        if existing:
+        if any(b.get("isbn") == book.isbn for b in db.store.values()):
             raise DuplicateISBNError(isbn=book.isbn)
-    new_id = max(books_db.keys()) + 1 if books_db else 1
-    books_db[new_id] = {**book.model_dump(), "id": new_id}
-    return books_db[new_id]
+
+    new_book = {"id": _next_id, **book.model_dump()}
+    db.store[_next_id] = new_book
+    _next_id += 1
+    return new_book
 
 
 @app.patch("/books/{book_id}", response_model=BookResponse)
-def update_book(book_id: int, update: BookUpdate):
-    if book_id not in books_db:
+def update_book(book_id: int, update: BookUpdate, db: FakeDB = Depends(get_db), user: CurrentUser = Depends(require_editor)):
+    if book_id not in db.store:
         raise BookNotFoundError(book_id)
-    books_db[book_id].update(update.model_dump(exclude_unset=True))
-    return books_db[book_id]
+    db.store[book_id].update(update.model_dump(exclude_unset=True))
+    return db.store[book_id]
 
 
 @app.delete("/books/{book_id}", status_code=204)
-def delete_book(book_id: int):
-    if book_id not in books_db:
+def delete_book(book_id: int, db: FakeDB = Depends(get_db), admin: CurrentUser = Depends(require_admin)):
+    if book_id not in db.store:
         raise BookNotFoundError(book_id)
-    del books_db[book_id]
+    del db.store[book_id]
 
 @app.get("/health")
 def health():
