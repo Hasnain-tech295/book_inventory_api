@@ -1,7 +1,9 @@
-from fastpi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Literal
+import logging
 
+logger = logging.getLogger(__name__)
 
 class PaginationParams:
     def __init__(self, limit: int, offset: int):
