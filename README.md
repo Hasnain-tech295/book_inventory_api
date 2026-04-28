@@ -60,7 +60,7 @@ A RESTful API for managing a book inventory, built with **FastAPI** and **Pydant
 ### Running the Server
 
 ```bash
-fastapi dev main.py
+fastapi dev app/main.py
 ```
 
 The API will be available at **http://127.0.0.1:8000**.
