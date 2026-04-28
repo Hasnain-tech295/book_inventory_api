@@ -219,10 +219,21 @@ Removes a book from the inventory.
 
 ```
 book_inventory_api/
-├── main.py           # FastAPI app, route definitions, in-memory database
-├── schemas.py        # Pydantic models (BookCreate, BookResponse, BookUpdate)
-├── requirements.txt  # Python dependencies
-└── README.md
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI app and route definitions
+│   ├── models.py            # Pydantic models for request/response validation
+│   ├── config.py            # Configuration settings
+│   ├── dependencies.py       # Dependency injection setup
+│   ├── exceptions.py         # Custom exception handlers
+│   ├── middleware.py         # Custom middleware
+│   └── routers/
+│       ├── __init__.py
+│       └── books.py          # Book endpoint routes
+├── lesson/                   # Learning materials and examples
+├── requirements.txt          # Python dependencies
+├── README.md
+└── LICENSE
 ```
 
 ---
