@@ -60,7 +60,11 @@ A RESTful API for managing a book inventory, built with **FastAPI** and **Pydant
 ### Running the Server
 
 ```bash
+# Development mode (with auto-reload)
 fastapi dev app/main.py
+
+# Production mode
+fastapi run app/main.py
 ```
 
 The API will be available at **http://127.0.0.1:8000**.
@@ -69,6 +73,17 @@ The API will be available at **http://127.0.0.1:8000**.
 |---|---|
 | `http://127.0.0.1:8000/docs` | Swagger UI (interactive docs) |
 | `http://127.0.0.1:8000/redoc` | ReDoc documentation |
+| `http://127.0.0.1:8000/openapi.json` | OpenAPI schema |
+
+### Development Setup
+
+```bash
+# Install development dependencies
+pip install -r requirements.txt
+
+# Run with reload on file changes
+fastapi dev app/main.py --reload
+```
 
 ---
 
@@ -248,3 +263,54 @@ book_inventory_api/
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## 🐛 Troubleshooting
+
+### Port 8000 Already in Use
+
+If port 8000 is already in use, specify a different port:
+
+```bash
+fastapi dev app/main.py --port 8080
+```
+
+### Import Errors
+
+Ensure your virtual environment is activated and dependencies are installed:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## ❓ FAQ
+
+**Q: Can I persist data to a database?**  
+A: Currently, the API uses in-memory storage. To add database support, integrate SQLAlchemy with SQLite, PostgreSQL, or another database.
+
+**Q: How do I validate ISBN-13 strings?**  
+A: The API automatically validates ISBN-13 format (13 digits) and strips hyphens before storage.
+
+**Q: What happens to data when the server restarts?**  
+A: All data is reset. Use a persistent database for production.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! To contribute:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Create a Pull Request
+
+---
+
+## 📞 Support
+
+For issues, questions, or suggestions, please open an [issue](https://github.com/your-username/book_inventory_api/issues) on GitHub.
