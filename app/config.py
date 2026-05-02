@@ -7,24 +7,24 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = False
 
-    # Server
-    host: str = "[IP_ADDRESS]"
-    port: int = 8000
+    # # Server
+    # host: str = "[IP_ADDRESS]"
+    # port: int = 8000
 
     # Database 
     database_url: str = "sqlite:///./books.db"
 
     # Security
     secret_key: str = "change-me-in-production!"
-    token_expire_minutes: int = 30
+    # token_expire_minutes: int = 30
 
     class Config:
         # Load from .env file automatically
-        env_file: ".env"
-        env_file_encoding: "utf-8"
+        env_file = ".env"
+        # env_file_encoding = "utf-8"
 
         # Allow extra fields without error
-        extra: "ignore"
+        extra = "ignore"
 
 # lru_cache means Settings() is only created ONCE per process.
 # Every call to get_settings() returns the same object.
