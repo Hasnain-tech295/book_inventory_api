@@ -1,0 +1,27 @@
+# docker-compose.yml — Option B (recommended, use this going forward)
+# Run everything with: docker-compose up -d
+# Stop with: docker-compose down
+# Destroy data with: docker-compose down -v
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: books-postgres
+    environment:
+      POSTGRES_USER: bookuser
+      POSTGRES_PASSWORD: bookpass
+      POSTGRES_DB: booksdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # persist data between restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookuser -d booksdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
